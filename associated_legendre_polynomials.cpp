@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <functional>
 #include <string>
+#include <complex>
 
 #ifdef USE_NUMERICAL_RECIPES
 #include "plegendre.h"
@@ -66,6 +67,20 @@ double tildePlm_derivative(const int l, const int m, const double x) {
     return factor1 * (tildePlm(l-1, m, x) + x * tildePlm_derivative(l-1, m, x) - factor2 * tildePlm_derivative(l-2, m, x));
 }
 
+// calculate the spherical harmonics for theta and phi
+std::complex<double> Ylm(const int l, const int m, const double theta, const double phi) {
+    const std::complex<double> tmp(0.0, static_cast<double>(m) * phi);
+    return tildePlm(l, m, std::cos(theta)) * std::exp(tmp);
+}
+
+// calculate the spherical harmonics for a vector in Cartesian coordinates
+std::complex<double> Ylm(const int l, const int m, const double x, const double y, const double z) {
+    const double norm = x * x + y * y + z * z;
+    const double cosine = z / std::sqrt(norm);
+    const std::complex<double> eiphi(x / std::sqrt(x * x + y * y), y / std::sqrt(x * x + y * y));
+    return tildePlm(l, m, cosine) * std::exp(m) * eiphi;
+}
+
 double Plm(const int l, const int m, const double x) {
     double tmp1 = 1.0;
     double tmp2 = 1.0;
@@ -127,17 +142,17 @@ int main() {
     double x = 0.5;
     std::cin >> x;
     std::cout << std::fixed << std::setprecision(9);
-    std::cout << tildePlm(l, m, x) << std::endl;
+    std::cout << "tildePlm(l, m, x) = " << tildePlm(l, m, x) << std::endl;
 #ifdef USE_NUMERICAL_RECIPES
     std::cout << plegendre(l, m, x) << std::endl;
 #endif
-    std::cout << Plm(l, m, x) << std::endl;
+    std::cout << "Plm: " << Plm(l, m, x) << std::endl;
 #ifdef USE_NUMERICAL_RECIPES
     std::cout << plgndr(l, m, x) << std::endl;
 #endif
-    std::cout << "STL (no Condon-Shortley phase term): " << std::assoc_legendre(l, m, x) << std::endl;
+    std::cout << "STL (no Condon-Shortley phase term) Plm: " << std::assoc_legendre(l, m, x) << std::endl;
 #ifdef USE_GSL
-    std::cout << "GSL: " << gsl_sf_legendre_Plm(l, m, x) << std::endl;
+    std::cout << "GSL Plm: " << gsl_sf_legendre_Plm(l, m, x) << std::endl;
 #endif
     using namespace std::placeholders;
     auto f1 = std::bind(tildePmm, m, _1);
@@ -152,5 +167,9 @@ int main() {
     auto f4 = std::bind(Plm, l, m, _1);
     auto df4 = std::bind(Plm_derivative, l, m, _1);
     checkDerivative(f4, df4, x, "Plm(l, m, x)");
+    std::cout << "Spherical harmonics:\n";
+    const double theta = 50.0 / 180.0 * M_PI;
+    const double phi = -30.0 / 180.0 * M_PI;
+    std::cout << Ylm(l, m, theta, phi) << std::endl;
     return 0;
 }
